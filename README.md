@@ -5,6 +5,10 @@ This is the main repository that keeps track of our working progress for the Sat
 
 We use a pretrained SPADE model to generate the synthetic satellite images, which will be used in the downstream experiments.
 
+### Set-up
+
+For now, please refer to the environment set up of [SPADE](https://github.com/nvlabs/spade/#installation)
+
 ### Steps
 
 1. Go to `generate_synthetic` folder
@@ -15,6 +19,16 @@ We use a pretrained SPADE model to generate the synthetic satellite images, whic
 
 
 ## Downstream Segmentation
+
+### Set-up
+
+For now, please install the environment using
+
+```
+conda env create -n ENVNAME --file environment.yml
+```
+
+### Steps
 
 1. Go to `downstream_segmentation` folder
 
