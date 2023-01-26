@@ -42,7 +42,7 @@ if [[ "$DATA_TYPE" == "test" ]]; then
 	./azcopy/${AZCOPY_DIR}/azcopy copy --recursive "https://lilablobssc.blob.core.windows.net/lcmcvpr2019/cvpr_chesapeake_landcover/md_1m_2013_extended-debuffered-test_tiles" "."
 fi
 
-if [[ "$DST" == "data" ]]; then
+if [[ "$DST" == "data_reorg" ]]; then
 	cd ./*${DATA_TYPE}*
 	find . -name '*_naip-old*' -delete
 	find . -name '*-leaf*' -delete
