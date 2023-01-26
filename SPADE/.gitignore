@@ -1,0 +1,8 @@
+checkpoints/
+*.DS_Store
+results/
+.idea/
+*.tar.gz
+*.zip
+*.pkl
+*.pyc
