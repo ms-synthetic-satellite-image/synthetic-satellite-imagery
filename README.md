@@ -9,6 +9,11 @@ bash get_data.sh data_chesapeakeiclr val linux
 bash get_data.sh data_chesapeakeiclr test linux
 ```
 
+Then replace `spatial_index.geojson` in the data folder
+```
+cp spatial_index.geojson data_chesapeakeiclr/spatial_index.geojson
+```
+
 ## Generate Synthetic Satellite Imagery
 
 We use a pretrained SPADE model to generate the synthetic satellite images, which will be used in the downstream experiments.
