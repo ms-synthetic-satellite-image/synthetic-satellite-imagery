@@ -1,6 +1,14 @@
 # Description
 This is the main repository that keeps track of our working progress for the Satellite project. It contains codes, scripts, documents, etc, that are deliverables and helpers for the team.
 
+## Prepare Data
+
+```
+bash get_data.sh data_chesapeakeiclr train linux
+bash get_data.sh data_chesapeakeiclr val linux
+bash get_data.sh data_chesapeakeiclr test linux
+```
+
 ## Generate Synthetic Satellite Imagery
 
 We use a pretrained SPADE model to generate the synthetic satellite images, which will be used in the downstream experiments.
