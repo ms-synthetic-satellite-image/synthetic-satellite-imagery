@@ -1,47 +1,31 @@
 # Description
 This is the main repository that keeps track of our working progress for the Satellite project. It contains codes, scripts, documents, etc, that are deliverables and helpers for the team.
 
-# Scripts
-## get_data.sh
-### How to use
+## Generate Synthetic Satellite Imagery
 
-`OS_TYPE` = `mac` or `linux`
+We use a pretrained SPADE model to generate the synthetic satellite images, which will be used in the downstream experiments.
 
-`DST` = `data` or `data_chesapeakeiclr`
+### Steps
 
-Downloading into `DST` = `data_chesapeakeiclr` keeps original data folder structure to use with `ChesapeakeICLR` module.
+1. Go to `generate_synthetic` folder
 
-For downloading training dataset:
+2. Download model weights from this [folder](https://drive.google.com/drive/folders/11C1qxiOcIur7rWcom1odeCSQJ7g2sjmz) and place it in `./checkpoints/`
+
+3. In terminal run `bash get_synthetic.sh [data_folder] [spade_model] [no_output] [gpu_id]` where `data_folder` is the path to maryland data folder, `spade_model` refers to name of model (`lambda_0`, `lambda_2`, ...), `no_output` is number of synthetic image generated, and `gpu_id` is the gpu to run the model on.
+
+
+## Downstream Segmentation
+
+1. Go to `downstream_segmentation` folder
+
+2. To train a model with a specified diversity value and mix rate:
 
 ```
-bash get_data.sh [DST] train [OS_TYPE]
+python train.py --name [model name] --mix_rate [for example: 0.0, 0.5, 1.0, 2.0, 3.0] --lambda_diverse [for example: 0, 2, 4, 6, 8, 10]
 ```
 
-For downloading validation dataset:
-```
-bash get_data.sh [DST] val [OS_TYPE]
-```
+3. To evaluate a trained downstream model:
 
-For downloading test dataset:
 ```
-bash get_data.sh [DST] test [OS_TYPE]
-```
-
-The directory for the downloaded images will similar to the following:
-```
-.
-├── LICENSE
-├── README.md
-├── data
-│   ├── azcopy
-│   │   └── azcopy_darwin_amd64_10.16.0
-│   │       ├── NOTICE.txt
-│   │       └── azcopy
-│   ├── azcopy.zip
-│   └── md_1m_2013_extended-debuffered-test_tiles
-│       ├── m_3807502_se_18_1_landsat-leaf-off.tif
-│       ├── m_3807502_se_18_1_lc.tif
-│       ├── m_3807502_se_18_1_nlcd.tif
-│       ├── m_3807541_sw_18_1_buildings.tif
-│       ├── ...
+python evaluation.py --model_path [path to a model checkpoint from step 2]
 ```
