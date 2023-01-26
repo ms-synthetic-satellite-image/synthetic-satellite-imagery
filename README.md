@@ -30,6 +30,11 @@ For now, please refer to the environment set up of [SPADE](https://github.com/nv
 
 3. In terminal run `bash get_synthetic.sh [data_folder] [spade_model] [no_output] [gpu_id]` where `data_folder` is the path to maryland data folder, `spade_model` refers to name of model (`lambda_0`, `lambda_2`, ...), `no_output` is number of synthetic image generated, and `gpu_id` is the gpu to run the model on.
 
+For example:
+```
+bash get_synthetic.sh ../data_chesapeakeiclr/md_1m_2013_extended-debuffered-train_tiles lambda_10 1 2
+```
+
 
 ## Downstream Segmentation
 
