@@ -4,7 +4,7 @@ import logging
 
 import torchgeo
 from torchgeo.datasets import ChesapeakeICLR
-from torchgeo.datamodules import ChesapeakeICLRDataModule, ChesapeakeCVPRDataModule
+from torchgeo.datamodules import ChesapeakeICLRDataModule
 from torchgeo.trainers import SemanticSegmentationTask
 from torchgeo.samplers import RandomGeoSampler
 
@@ -36,6 +36,7 @@ def get_args():
     parser.add_argument('--gpu_id', type=int, default=0, help = 'Set gpu id') 
     parser.add_argument('--data_root', type= str, default='../data_chesapeakeiclr', help = 'Set dataset root')
     parser.add_argument('--patches_per_tile', type = int, default=200, help = 'Set number of patches we get per tile')
+    parser.add_argument('--n_channels', type=int, default=4, help='The number of channels of the input image')
     return parser.parse_args()
 
 
@@ -66,14 +67,15 @@ if __name__ == '__main__':
         patches_per_tile = args.patches_per_tile,
         # layers=["naip-new", "lc"],
         mix_rate=args.mix_rate,
-        diversity=args.lambda_diverse
+        diversity=args.lambda_diverse,
+        channels = args.n_channels
     )
     
     task = SemanticSegmentationTask(
         model="unet",
         backbone="resnet50",
         weights="imagenet",
-        in_channels=3,
+        in_channels=args.n_channels,
         num_classes=args.semantic_nc,
         loss="jaccard",
         ignore_index=None,

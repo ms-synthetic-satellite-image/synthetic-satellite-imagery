@@ -8,6 +8,13 @@ Welcome to the Label-conditional Synthetic Satellite Imagery project repository,
 
 ## Setup
 
+### Code
+Use the following commands to clone this repository:
+
+```
+git clone --recursive https://github.com/ms-synthetic-satellite-image/synthetic-satellite-imagery.git
+```
+
 ### Data Source
 We train our label-conditional image generation model and generate synthetic images on [Chesapeake Land Cover Dataset](https://lila.science/datasets/chesapeakelandcover). We use the 4-channel high-resolution aerial imagery, the high-resolution land cover labels from the Chesapeake Conservancy, and restrict our study area to Maryland.
 
@@ -36,8 +43,14 @@ Standard NC12 virtual machines with `ubuntu-2004` os published on Microsoft Azur
 Use the following commands to install and activate the environment.
 
 ```
-conda env create --file environment.yml
+conda create -n satellite_iclr python==3.8
 conda activate satellite_iclr
+pip install -r requirements.txt
+```
+
+We forked the original [torchgeo](https://github.com/microsoft/torchgeo) repository and modified the package, to install and use the local torchgeo package:
+```
+cd torchgeo && pip install .
 ```
 
 ## Generate Synthetic Satellite Imagery

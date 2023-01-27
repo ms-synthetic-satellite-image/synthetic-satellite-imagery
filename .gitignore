@@ -1,2 +1,9 @@
 *.DS_Store
 data_chesapeakeiclr/
+generate_synthetic/checkpoints/
+generate_synthetic/files.txt
+downstream_segmentation/evaluation/
+downstream_segmentation/results/
+downstream_segmentation/logs/
+downstream_segmentation/*.png
+torchgeo/experiment_dir/

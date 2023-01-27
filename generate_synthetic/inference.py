@@ -246,12 +246,13 @@ if __name__ == '__main__':
                 print(f"{output_image} already exists.")
                 continue
             
-            mode = 'r' if os.path.exists('files.txt') else 'w'
-            with open('files.txt', mode) as textfile:
-                if output_image in textfile.read():
-                    print(f"{output_image} already being generated.")
-                    continue
-
+            if os.path.exists('files.txt'):
+                with open('files.txt', 'r') as textfile:
+                    if output_image in textfile.read():
+                        print(f"{output_image} already being generated.")
+                        continue
+            
+            mode = 'a' if os.path.exists('files.txt') else 'w'
             # write to txt file to keep track of files generates
             with open('files.txt', 'a') as textfile:
                 textfile.write("%s\n" % output_image )
