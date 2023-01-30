@@ -39,7 +39,7 @@ class Pix2PixModel(torch.nn.Module):
     # of deep networks. We used this approach since DataParallel module
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
-    def forward(self, data, mode):
+    def forward(self, data, mode, encoder):
         input_semantics, real_image = self.preprocess_input(data)
 
         if mode == 'generator':
@@ -55,7 +55,7 @@ class Pix2PixModel(torch.nn.Module):
             return mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.generate_fake(input_semantics, real_image)
+                fake_image, _ = self.generate_fake(input_semantics, real_image, encoder)
             return fake_image
 
         #TODO: update to FID score after finishing it
@@ -210,10 +210,11 @@ class Pix2PixModel(torch.nn.Module):
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
-    def generate_fake(self, input_semantics, real_image, compute_kld_loss=False):
+    def generate_fake(self, input_semantics, real_image, encoder, compute_kld_loss=False):
         z = None
         KLD_loss = None
-        if self.opt.use_vae:
+        # use encoder to generate z if specified, otherwise use randomly sampled z
+        if self.opt.use_vae and encoder:
             z, mu, logvar = self.encode_z(real_image)
             if compute_kld_loss:
                 KLD_loss = self.KLDLoss(mu, logvar) * self.opt.lambda_kld

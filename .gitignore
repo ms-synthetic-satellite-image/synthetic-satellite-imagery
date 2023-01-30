@@ -1,7 +1,9 @@
 *.DS_Store
 data_chesapeakeiclr/
 generate_synthetic/checkpoints/
-generate_synthetic/files.txt
+generate_synthetic/*.txt
+generate_synthetic/fid_stats
+generate_synthetic/*.csv
 downstream_segmentation/evaluation/
 downstream_segmentation/results/
 downstream_segmentation/logs/
