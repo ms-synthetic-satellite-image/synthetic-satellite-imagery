@@ -12,7 +12,7 @@ Welcome to the Label-conditional Synthetic Satellite Imagery project repository,
 Use the following commands to clone this repository:
 
 ```
-git clone --recursive https://github.com/ms-synthetic-satellite-image/synthetic-satellite-imagery.git
+git clone https://github.com/ms-synthetic-satellite-image/synthetic-satellite-imagery.git
 ```
 
 ### Data Source
@@ -43,7 +43,7 @@ Standard NC12 virtual machines with `ubuntu-2004` os published on Microsoft Azur
 Use the following commands to install and activate the environment.
 
 ```
-conda create -n satellite_iclr python==3.8
+conda env create -f environment.yml
 conda activate satellite_iclr
 pip install -r requirements.txt
 ```

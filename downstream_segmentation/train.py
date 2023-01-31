@@ -1,19 +1,14 @@
-import os
 import argparse
 import logging
+import sys
 
-import torchgeo
-from torchgeo.datasets import ChesapeakeICLR
-from torchgeo.datamodules import ChesapeakeICLRDataModule
+sys.path.append('../torchgeo')
+from datamodules import ChesapeakeICLRDataModule
 from torchgeo.trainers import SemanticSegmentationTask
-from torchgeo.samplers import RandomGeoSampler
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
-
-import numpy as np
-import matplotlib.pyplot as plt
 import torch
 
 
@@ -65,16 +60,16 @@ if __name__ == '__main__':
         val_splits=["md-val"],
         test_splits=["md-test"],
         patches_per_tile = args.patches_per_tile,
-        # layers=["naip-new", "lc"],
+        # We use layers=["naip-new", "lc"], which is also the default layers of  ChesapeakeCVPRataModule
         mix_rate=args.mix_rate,
         diversity=args.lambda_diverse,
         channels = args.n_channels
     )
     
     task = SemanticSegmentationTask(
-        model="unet",
-        backbone="resnet50",
-        weights="imagenet",
+        segmentation_model="unet",
+        encoder_name="resnet50",
+        encoder_weights="imagenet",
         in_channels=args.n_channels,
         num_classes=args.semantic_nc,
         loss="jaccard",

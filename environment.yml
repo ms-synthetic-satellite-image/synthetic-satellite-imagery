@@ -1,0 +1,14 @@
+name: satellite_iclr
+channels:
+  - pytorch
+  - conda-forge
+  - nvidia
+  - defaults
+
+dependencies:
+  - python=3.9
+  - cudatoolkit
+  - pytorch==1.13
+  - torchaudio
+  - torchvision
+  - pip

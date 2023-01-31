@@ -7,3 +7,4 @@ downstream_segmentation/results/
 downstream_segmentation/logs/
 downstream_segmentation/*.png
 torchgeo/experiment_dir/
+*__pycache__*

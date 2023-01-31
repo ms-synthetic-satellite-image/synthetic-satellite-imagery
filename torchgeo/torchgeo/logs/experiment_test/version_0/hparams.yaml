@@ -1,9 +1,0 @@
-model: unet
-backbone: resnet50
-weights: imagenet
-in_channels: 4
-num_classes: 5
-loss: ce
-ignore_index: null
-learning_rate: 0.0001
-learning_rate_schedule_patience: 10

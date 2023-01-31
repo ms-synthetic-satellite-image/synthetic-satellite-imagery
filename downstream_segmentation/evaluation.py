@@ -1,10 +1,11 @@
 import argparse
 import csv
 import os
+import sys
 from typing import Any, Dict, Union, cast
 
-import torchgeo
-from torchgeo.datamodules import ChesapeakeICLRDataModule
+sys.path.append('../torchgeo')
+from datamodules import ChesapeakeICLRDataModule
 from torchgeo.trainers import SemanticSegmentationTask
 from torchmetrics import MetricCollection
 from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex
