@@ -8,3 +8,4 @@ downstream_segmentation/logs/
 downstream_segmentation/*.png
 torchgeo/experiment_dir/
 *__pycache__*
+downstream_segmentation/visualization.ipynb
