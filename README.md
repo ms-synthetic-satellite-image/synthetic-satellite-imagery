@@ -61,13 +61,20 @@ We use a pretrained SPADE model to generate the synthetic satellite images, whic
 
 1. Go to `generate_synthetic` folder
 
-2. Download model weights from this [folder](https://drive.google.com/drive/folders/11C1qxiOcIur7rWcom1odeCSQJ7g2sjmz) and place it in `./checkpoints/`
+2. Download model weights from this [folder](https://drive.google.com/drive/folders/11C1qxiOcIur7rWcom1odeCSQJ7g2sjmz) and place it in `generatate_synthetic/checkpoints/`
 
-3. In terminal run `bash get_synthetic.sh [data_folder] [spade_model] [no_output] [gpu_id]` where `data_folder` is the path to maryland data folder, `spade_model` refers to name of model (`lambda_0`, `lambda_2`, ...), `no_output` is number of synthetic image generated, and `gpu_id` is the gpu to run the model on.
+3. To generate synthetic images for the training set to use in downstream experiments, run `python inference.py --data_folder [train_data_folder] --data_type train --spade_model [spade_model] --no_output [no_output] --gpu_id [gpu_id]` where `train_data_folder` is the path to Maryland training data, `spade_model` refers to name of model (`lambda_0`, `lambda_2`, ...), `no_output` is number of synthetic image generated, and `gpu_id` is the gpu to run the model on.
 
 For example:
 ```
-bash get_synthetic.sh ../data_chesapeakeiclr/md_1m_2013_extended-debuffered-train_tiles lambda_10 1 2
+python inference.py --data_folder ../data_chesapeakeiclr/md_1m_2013_extended-debuffered-train_tiles --data_type train --spade_model lambda_0 --no_output 1 --gpu_id 0
+```
+
+4. To generate synthetic images and evaluate FID scores over the test set, run `python inference.py --data_folder [test_data_folder] --data_type test --spade_model [spade_model] --save_patch 1 --compute_fid 1 --gpu_id [gpu_id]`.
+
+For example:
+```
+python inference.py --data_folder ../data_chesapeakeiclr/md_1m_2013_extended-debuffered-test_tiles --data_type test --spade_model lambda_0 --save_patch 1 --compute_fid 1 --gpu_id 0
 ```
 
 

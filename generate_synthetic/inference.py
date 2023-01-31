@@ -4,8 +4,8 @@ import argparse
 
 sys.path.append('../SPADE')
 import numpy as np
-import matplotlib.pyplot as plt
-import imageio
+import csv
+from PIL import Image
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -15,18 +15,21 @@ import random
 
 from options.test_options import TestOptions
 from models.pix2pix_model import Pix2PixModel
-from data import create_dataloader
+from fid.fid_score import calculate_activation_statistics, save_statistics, load_statistics, calculate_frechet_distance, _compute_statistics_of_path
+from fid.inception import InceptionV3
 
 import rasterio
-from rasterio.windows import Window
 from rasterio.errors import RasterioIOError
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_folder', type=str, help='data folder path')
-    parser.add_argument('--checkpoint_dir', type=str, default='checkpoints')
-    parser.add_argument('--spade_model', type=str, default='lambda0', help='spade model')
+    parser.add_argument('--data_type', type=str, default='train', help='indicate train/test/val dataset')
+    parser.add_argument('--checkpoint_dir', type=str, default='checkpoints', help='path to checkpoint directory')
+    parser.add_argument('--spade_model', type=str, default='lambda_0', help='spade model within checkpoint directory')
     parser.add_argument('--no_output', type=int, default=1, help='no. of synthetic image generated')
+    parser.add_argument('--save_patch', type=int, default=0, help='1 - save patches from tiles as .png to calculate FID post-inference')
+    parser.add_argument('--compute_fid', type=int, default=0, help='1 - calculate FID from saved patches')
     parser.add_argument('--gpu_id', type=str, default="0", help='gpu id')
 
     return parser.parse_args()
@@ -70,7 +73,7 @@ class TileInferenceDataset(Dataset):
             if not windowed_sampling:
                 self.mask_building_data = f.read()
         
-        # combine building and landcover mask
+        # combine building and landcover masks
         building_mask = (self.mask_building_data == 1)
         self.mask_data[building_mask] = 7
             
@@ -107,7 +110,7 @@ class TileInferenceDataset(Dataset):
                         sample["image"] = f.read(window=rasterio.windows.Window(x, y, self.chip_size, self.chip_size))[:3]
                     with rasterio.open(self.mask_fn) as f:
                         sample["label"] = f.read(window=rasterio.windows.Window(x, y, self.chip_size, self.chip_size))
-            except RasterioIOError as e: # NOTE(caleb): I put this here to catch weird errors that I was seeing occasionally when trying to read from COGS - I don't remember the details though
+            except RasterioIOError as e: 
                 print("Reading %d failed, returning 0's" % (idx))
                 sample["image"] = np.zeros((self.num_channels, self.chip_size, self.chip_size), dtype=np.uint8)
                 sample["label"] = np.zeros((self.num_channels, self.chip_size, self.chip_size), dtype=np.uint8)
@@ -148,7 +151,7 @@ def inverse_normalize(generated):
 
 def get_model(checkpoints_dir, model_name, gpu_id):
     sys.argv = [
-        "baseline/test.py",
+        "SPADE/test.py",
         "--name", model_name,
         "--dataset_mode", "custom",
         "--label_dir", "dummy",
@@ -168,7 +171,8 @@ def get_model(checkpoints_dir, model_name, gpu_id):
 
     return model
 
-def generate_synthetic(input_image_fn, input_mask, input_building_mask, output_image_fn, model):
+def generate_synthetic(input_image_fn, input_mask, input_building_mask, output_image_fn, model,
+                       data_type, patch_folders=None, file_name=None, save_patch=False):
     with rasterio.open(input_image_fn) as f:
         profile = f.profile
         big_image = np.rollaxis(f.read(), 0, 3)
@@ -197,10 +201,17 @@ def generate_synthetic(input_image_fn, input_mask, input_building_mask, output_i
     kernel[HALF_PADDING:-HALF_PADDING, HALF_PADDING:-HALF_PADDING] = 5
     counts = np.zeros((height, width, 1), dtype=np.float32)
 
+    idx = 0
     for data_i in tqdm(dl):
         batch_size = data_i["label"].shape[0]
 
-        generated = model(data_i, mode='inference')
+        # Use trained encoder if generating synthetic images for the train set, 
+        # Use randomly sampled z when generating synthetic images and evaluate FID over test set
+        if data_type == 'train':
+            generated = model(data_i, mode='inference', encoder=True)
+        else:
+            generated = model(data_i, mode='inference', encoder=False)
+
         generated = inverse_normalize(generated)
         for i in range(batch_size):
             y = data_i["location"][0][i]
@@ -208,6 +219,27 @@ def generate_synthetic(input_image_fn, input_mask, input_building_mask, output_i
             
             output[y:y+CHIP_SIZE, x:x+CHIP_SIZE] += generated[i] * kernel
             counts[y:y+CHIP_SIZE, x:x+CHIP_SIZE] += kernel
+
+            if save_patch:
+                patch_folder_real, patch_folder_syn = patch_folders[0], patch_folders[1]
+                # save patch of real image
+                real = Image.fromarray(np.transpose(data_i['image'][i].cpu().float().numpy(), (1,2,0)).astype(np.uint8))
+                real_save = os.path.join(patch_folder_real, file_name + "_" + str(idx+i) + ".png")
+                if not os.path.exists(patch_folder_real):
+                    os.mkdir(patch_folder_real)
+                if not os.path.exists(real_save):
+                    real.save(real_save)
+                
+                # save patch of generated image
+                syn = Image.fromarray(generated[i])
+                generated_save = os.path.join(patch_folder_syn, file_name + "_" + str(idx+i) + ".png")
+                if not os.path.exists(patch_folder_syn):
+                    os.mkdir(patch_folder_syn)
+
+                if not os.path.exists(generated_save):
+                    syn.save(generated_save)
+
+        idx = idx + batch_size
 
     output = (output / counts).astype(np.uint8)
 
@@ -221,43 +253,104 @@ def generate_synthetic(input_image_fn, input_mask, input_building_mask, output_i
 
     return
 
+def get_activation_statistics(dl, stats_output, model, dims, device, path=False):
+    # check if file already exists or generated:
+    if os.path.exists(stats_output):
+        print(f"{stats_output} already exists.")
+        return load_statistics(stats_output)
+    if path:
+        m, s = _compute_statistics_of_path(dl, model, batch_size=32, dims = dims, device = device)
+    else:
+        m, s = calculate_activation_statistics(dl, model, batch_size=32, dims = dims, device = device)
+    save_statistics(stats_output, m, s)
+
+    return m, s
+
 if __name__ == '__main__':
     args = get_args()
     file_list = get_filenames(args.data_folder)
+    data_type = args.data_type
     random.shuffle(file_list)
     
     model = get_model(args.checkpoint_dir, args.spade_model, args.gpu_id)
 
+    # generate synthetic images
     for i, f in enumerate(file_list):
         print(f"Processing tile {str(i+1)}/{len(file_list)} tiles")
         input_image = os.path.join(args.data_folder, f + "_naip-new.tif")
         input_mask = os.path.join(args.data_folder, f + "_lc.tif")
         input_building_mask = os.path.join(args.data_folder, f + "_buildings.tif")
-
+        
+        if args.save_patch == 1:
+            patch_folder_real = os.path.join(args.data_folder.rpartition("/")[0], args.data_type + "_patch_real")
+            patch_folder_syn = os.path.join(args.data_folder.rpartition("/")[0], args.data_type + "_patch_" + args.spade_model)
+       
         for n in range(args.no_output):
             output_image = os.path.join(args.data_folder, f + "_syn_" + args.spade_model + ".tif")
             
             if args.no_output > 1:
                 output_image = os.path.join(args.data_folder, f + "_syn_" + args.spade_model + "_" + str(n) + ".tif")
             
-            
             # check if file already exists or generated:
             if os.path.exists(output_image):
                 print(f"{output_image} already exists.")
                 continue
             
-            if os.path.exists('files.txt'):
-                with open('files.txt', 'r') as textfile:
+            if os.path.exists(f'{args.data_type}_tiles.txt'):
+                with open(f'{args.data_type}_tiles.txt', 'r') as textfile:
                     if output_image in textfile.read():
                         print(f"{output_image} already being generated.")
                         continue
             
-            mode = 'a' if os.path.exists('files.txt') else 'w'
+            mode = 'a' if os.path.exists(f'{args.data_type}_tiles.txt') else 'w'
             # write to txt file to keep track of files generates
-            with open('files.txt', 'a') as textfile:
+            with open(f'{args.data_type}_tiles.txt', 'a') as textfile:
                 textfile.write("%s\n" % output_image )
     
             # generate synthetic images
-            generate_synthetic(input_image, input_mask, input_building_mask, output_image, model)
+            if args.save_patch == 1:
+                generate_synthetic(input_image, input_mask, input_building_mask, output_image, model,
+                                   data_type, patch_folders=[patch_folder_real, patch_folder_syn], file_name = f, 
+                                   save_patch=True)
+            else:
+                generate_synthetic(input_image, input_mask, input_building_mask, output_image, model, data_type)
+    
+    # compute fid from saved patches
+    if args.compute_fid:
+        # inception model
+        dims = 2048
+        device = 'cuda:' + args.gpu_id
+        block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
+        model = InceptionV3([block_idx]).to(device)
+
+        # calculate and save activation statistics
+        fid_dir = "fid_stats"
+        if not os.path.exists(fid_dir):
+            os.mkdir(fid_dir)
+
+        stats_output_real = os.path.join(fid_dir, args.data_type + "_activation_stats_real.npz")
+        stats_output_syn = os.path.join(fid_dir, args.data_type + "_activation_stats_" + args.spade_model + ".npz")
+        real_patch = os.path.join(args.data_folder.rpartition("/")[0], args.data_type + "_patch_real")
+        syn_patch = os.path.join(args.data_folder.rpartition("/")[0], args.data_type + "_patch_" + args.spade_model)
+        
+        m_real, s_real = get_activation_statistics(real_patch, stats_output_real, model, dims, device, path=True)
+        m_syn, s_syn = get_activation_statistics(syn_patch, stats_output_syn, model, dims, device, path=True)
+        fid_value = calculate_frechet_distance(m_real, s_real, m_syn, s_syn)
+
+        result_row = {'spade_model': args.spade_model,
+                      'FID':fid_value}
+
+        # save results in csv file:
+        output_path = "fid_" + args.data_type + ".csv"
+        fieldnames = ['spade_model', 'FID']
+        if not os.path.exists(output_path):
+            with open(output_path, "w") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+        
+        # write to csv file
+        with open(output_path, "a") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writerow(result_row)
 
 

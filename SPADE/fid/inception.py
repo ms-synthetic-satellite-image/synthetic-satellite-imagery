@@ -99,7 +99,7 @@ class InceptionV3(nn.Module):
             inception = fid_inception_v3(model_dir)
         else:
             inception = _inception_v3(pretrained=True)
-            
+
         self.channel_modify = nn.Conv2d(4, 3, kernel_size=1)
 
         # Block 0: input to maxpool1
@@ -173,7 +173,8 @@ class InceptionV3(nn.Module):
         if self.normalize_input:
             x = 2 * x - 1  # Scale from range (0, 1) to range (-1, 1)
 
-        x = self.channel_modify(x)
+        if x.shape[-1] == 4:
+            x = self.channel_modify(x)
         
         for idx, block in enumerate(self.blocks):
             x = block(x)

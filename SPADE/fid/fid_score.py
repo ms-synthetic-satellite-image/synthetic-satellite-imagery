@@ -57,6 +57,7 @@ import torchvision.transforms as TF
 from scipy import linalg
 from torch.nn.functional import adaptive_avg_pool2d
 from PIL import Image
+from tqdm import tqdm
 
 from fid.inception import InceptionV3
 
@@ -125,20 +126,13 @@ def get_activations(files, model, batch_size=50, dims=2048, device='cpu', max_sa
     else:
         dl = files
         if not torch.is_tensor(dl):
-            # print("============NONONONO============")
-            # dl = dl['image']
             flag = 1
 
     pred_arr = []
     total_processed = 0
 
-    # print('Starting to sample.')
     if flag == 0:
-        # print('tensor version')
         batch = dl
-        # print("------------------")
-        # print(batch)
-        # print(batch.size())
         batch = batch.to(device)
         if batch.shape[1] == 1:  # if image is gray scale
             batch = batch.repeat(1, 3, 1, 1)
@@ -156,13 +150,7 @@ def get_activations(files, model, batch_size=50, dims=2048, device='cpu', max_sa
         
     else:
         i = 0
-        print('dataloader version') 
-        for batch in dl:
-            # ignore labels
-            # print("------------------")
-            # print(batch)
-            # print(batch.size())
-            print(i)
+        for batch in tqdm(dl):
             i+=1
             if isinstance(batch, list):
                 batch = batch[0]
