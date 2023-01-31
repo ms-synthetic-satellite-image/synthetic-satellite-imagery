@@ -1,31 +1,52 @@
+"""
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the MIT License.
+
+Script for running an evaluation script for a downstream segmentation model trained using the training script.
+Example:
+python evaluation.py --name <name of csv file to save the evaluation metrics, which will be saved in ./evaluation> 
+                     --model_path <path to the a trained segmentation model using train.py>
+
+Please refer to get_args() in this script to modify other evaluation settings.
+"""
 import argparse
 import csv
 import os
 import sys
+sys.path.append('../torchgeo')
+
+import torch
+import pytorch_lightning as pl
+from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex
+from torchmetrics import MetricCollection
+from torchgeo.trainers import SemanticSegmentationTask
 from typing import Any, Dict, Union, cast
 
-sys.path.append('../torchgeo')
 from datamodules import ChesapeakeICLRDataModule
-from torchgeo.trainers import SemanticSegmentationTask
-from torchmetrics import MetricCollection
-from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex
-
-import pytorch_lightning as pl
-import torch
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Evaluate the IoU of given model and test set')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
-    parser.add_argument('--model_path', type=str, required=True, help='Load model from a .ckpt file')
-    parser.add_argument('--label_nc', type=int, default=6, help='Number of classes, 6 for lc')
-    parser.add_argument('--name', type=str, default='test', help = 'Set name for saved csv')
-    parser.add_argument('--gpu_id', type=int, default=0, help = 'Set gpu id') 
-    parser.add_argument('--data_root', type=str, default='../data_chesapeakeiclr', help = 'Set dataset root')
+    parser = argparse.ArgumentParser(
+        description='Evaluate the IoU of given model and test set')
+    parser.add_argument('--batch_size', type=int,
+                        default=32, help='Batch size')
+    parser.add_argument('--model_path', type=str, required=True,
+                        help='Load model from a .ckpt file')
+    parser.add_argument('--label_nc', type=int, default=6,
+                        help='Number of classes, 6 for lc')
+    parser.add_argument('--name', type=str, default='test',
+                        help='Set name for saved csv')
+    parser.add_argument('--gpu_id', type=int, default=0, help='Set gpu id')
+    parser.add_argument('--data_root', type=str,
+                        default='../data_chesapeakeiclr', help='Set dataset root')
     parser.add_argument('--nThreads', default=12, type=int, help='# workers')
-    parser.add_argument('--seed', default=0, type=int, help="random seed for reproducibility")
-    parser.add_argument('--ignore_index', default=0, type=int, help="the paddding index to be ignored")
-    parser.add_argument('--n_channels', type=int, default=4, help='The number of channels of the input image')
+    parser.add_argument('--seed', default=0, type=int,
+                        help="random seed for reproducibility")
+    parser.add_argument('--ignore_index', default=0, type=int,
+                        help="the paddding index to be ignored")
+    parser.add_argument('--n_channels', type=int, default=4,
+                        help='The number of channels of the input image')
     return parser.parse_args()
+
 
 def run_eval_loop(
     model: pl.LightningModule,
@@ -60,7 +81,7 @@ def run_eval_loop(
                 for i in range(len(batch["image"]))
             ]
         with torch.inference_mode():
-            y_pred = model(x)  
+            y_pred = model(x)
         metrics(y_pred, y)
     results = metrics.compute()
     metrics.reset()
@@ -85,7 +106,7 @@ def main(args: argparse.Namespace) -> None:
         train_splits=["md-train"],
         val_splits=["md-val"],
         test_splits=["md-test"],
-        channels = args.n_channels,
+        channels=args.n_channels,
     )
     dm.setup("test")
 
@@ -111,29 +132,29 @@ def main(args: argparse.Namespace) -> None:
     device = torch.device("cuda:%d" % (args.gpu_id))
     model = model.to(device)
     metrics = MetricCollection({"Accuracy": MulticlassAccuracy(
-                                            num_classes=hparams["num_classes"],
-                                            ignore_index=0,
-                                            mdmc_average="global",
-                                            ),
-                                # mean IoU
-                                # the original code is wrong - modifications made when storing
-                                "JaccardIndex": MulticlassJaccardIndex(
-                                                num_classes=hparams["num_classes"],
-                                                ignore_index=args.ignore_index,
-                                                ),
-                                # labelwise IoU
-                                "Labelwise_JaccardIndex": MulticlassJaccardIndex(
-                                                          num_classes=hparams["num_classes"],
-                                                          ignore_index=args.ignore_index,
-                                                          average=None)
-                               }).to(device)
+        num_classes=hparams["num_classes"],
+        ignore_index=0,
+        mdmc_average="global",
+    ),
+        # mean IoU
+        # the original code is wrong - modifications made when storing
+        "JaccardIndex": MulticlassJaccardIndex(
+        num_classes=hparams["num_classes"],
+        ignore_index=args.ignore_index,
+    ),
+        # labelwise IoU
+        "Labelwise_JaccardIndex": MulticlassJaccardIndex(
+        num_classes=hparams["num_classes"],
+        ignore_index=args.ignore_index,
+        average=None)
+    }).to(device)
     test_results = run_eval_loop(model, dm.test_dataloader(), device, metrics)
     test_row.update(
-            {
-                "overall_accuracy": test_results["Accuracy"].item(),
-                "jaccard_index_corrected": test_results["JaccardIndex"].item() * (args.label_nc+1)/args.label_nc,
-                "labelwise_jaccard_index": test_results["Labelwise_JaccardIndex"].tolist()
-            })
+        {
+            "overall_accuracy": test_results["Accuracy"].item(),
+            "jaccard_index_corrected": test_results["JaccardIndex"].item() * (args.label_nc+1)/args.label_nc,
+            "labelwise_jaccard_index": test_results["Labelwise_JaccardIndex"].tolist()
+        })
 
     fieldnames = list(test_row.keys())
 

@@ -1,3 +1,23 @@
+"""
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the MIT License.
+
+Script for training a downstream segmentation model using the chesapeake dataset mixed with the synthetic imagery.
+Example:
+1. For training models with various sizes of synthetic datasets:
+python train.py --name <model name> --mix_rate <mix rate choosing from 1.0, 2.0 or 3.0> --gpu_id 0
+(Note that the lambda diversity can only be set to 6 by default)
+
+2. For training models with various lambda diversities:
+python train.py --name <model name> --mix_rate 1.0 --lambda_diverse <lambda choosing from integers from 0 to 10> --gpu_id 3
+(Note that the mix_rate should be fixed to 1.0)
+
+3. For training models with real dataset mixed with various portions of synthetic imagery:
+python train.py --name <model name> --mix_rate <mix rate between 0.0 and 1.0> --gpu_id 0
+(Note that the lambda diversity can only be set to 6 by default)
+
+Please refer to get_args() in this script to modify other training settings.
+"""
 import argparse
 import logging
 import sys

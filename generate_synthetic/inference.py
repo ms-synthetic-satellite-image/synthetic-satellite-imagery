@@ -1,3 +1,10 @@
+"""
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the MIT License.
+
+Script for generating synthetic imagery using our pretrained SPADE model.
+Please refer to README.md for how to use this script and get_args() in this script to modify other inference settings.
+"""
 import sys
 import os
 import argparse

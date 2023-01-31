@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# File       : deploy.sh
-# Created    : Thu Jan 06 2022 09:27:58 PM (-0500)
-# Author     : Sherry Tang
-# Description: Script for downloading data
-# Copyright 2022 Harvard University. All Rights Reserved.
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
 
 DST="$1"
 DATA_TYPE="$2"
