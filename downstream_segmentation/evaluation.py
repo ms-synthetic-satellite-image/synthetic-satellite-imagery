@@ -15,9 +15,9 @@ import os
 import sys
 sys.path.append('../torchgeo')
 
-import torch
 import pytorch_lightning as pl
-from torchmetrics.classification import MulticlassAccuracy, MulticlassJaccardIndex
+import torch
+from torchmetrics.classification import Accuracy, JaccardIndex
 from torchmetrics import MetricCollection
 from torchgeo.trainers import SemanticSegmentationTask
 from typing import Any, Dict, Union, cast
@@ -46,7 +46,6 @@ def get_args():
     parser.add_argument('--n_channels', type=int, default=4,
                         help='The number of channels of the input image')
     return parser.parse_args()
-
 
 def run_eval_loop(
     model: pl.LightningModule,
@@ -119,11 +118,14 @@ def main(args: argparse.Namespace) -> None:
 
     # Record model hyperparameters
     hparams = cast(Dict[str, Union[str, float]], model.hparams)
+    # Note we use torchgeo 0.4.0 as the framework for model training, but for torchgeo 0.3.1 the parameter names are different.
+    # Therefore we use different names from `hparams`.
+    # Here segmentation_model is equivalant to model, encoder_name is equivalant to backbone and encoder_weights is equivalant to weights.
     test_row = {
         "split": "test",
-        "model": hparams["model"],
-        "backbone": hparams["backbone"],
-        "weights": hparams["weights"],
+        "segmentation_model": hparams["segmentation_model"],
+        "encoder_name": hparams["encoder_name"],
+        "encoder_weights": hparams["encoder_weights"],
         "learning_rate": hparams["learning_rate"],
         "loss": hparams["loss"],
     }
@@ -131,19 +133,19 @@ def main(args: argparse.Namespace) -> None:
     # Compute metrics
     device = torch.device("cuda:%d" % (args.gpu_id))
     model = model.to(device)
-    metrics = MetricCollection({"Accuracy": MulticlassAccuracy(
+    metrics = MetricCollection({"Accuracy": Accuracy(
         num_classes=hparams["num_classes"],
         ignore_index=0,
         mdmc_average="global",
     ),
-        # mean IoU
-        # the original code is wrong - modifications made when storing
-        "JaccardIndex": MulticlassJaccardIndex(
+        # Calculate mean IoU
+        # The original code is wrong - modifications made when storing
+        "JaccardIndex": JaccardIndex(
         num_classes=hparams["num_classes"],
         ignore_index=args.ignore_index,
     ),
         # labelwise IoU
-        "Labelwise_JaccardIndex": MulticlassJaccardIndex(
+        "Labelwise_JaccardIndex": JaccardIndex(
         num_classes=hparams["num_classes"],
         ignore_index=args.ignore_index,
         average=None)
@@ -152,7 +154,7 @@ def main(args: argparse.Namespace) -> None:
     test_row.update(
         {
             "overall_accuracy": test_results["Accuracy"].item(),
-            "jaccard_index_corrected": test_results["JaccardIndex"].item() * (args.label_nc+1)/args.label_nc,
+            "jaccard_index_corrected": test_results["JaccardIndex"].item(),
             "labelwise_jaccard_index": test_results["Labelwise_JaccardIndex"].tolist()
         })
 
