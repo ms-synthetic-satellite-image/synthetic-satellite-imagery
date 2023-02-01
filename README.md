@@ -48,10 +48,6 @@ conda activate satellite_iclr
 pip install -r requirements.txt
 ```
 
-We forked the original [torchgeo](https://github.com/microsoft/torchgeo) repository and modified the package, to install and use the local torchgeo package:
-```
-cd torchgeo && pip install .
-```
 
 ## Generate Synthetic Satellite Imagery
 
