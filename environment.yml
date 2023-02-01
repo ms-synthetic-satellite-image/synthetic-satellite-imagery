@@ -6,7 +6,7 @@ channels:
   - defaults
 
 dependencies:
-  - python=3.9
+  - python=3.8
   - cudatoolkit
   - pytorch==1.13
   - torchaudio
