@@ -94,7 +94,7 @@ class VGG19(torch.nn.Module):
     def __init__(self, requires_grad=False):
         super().__init__()
         vgg_pretrained_features = torchvision.models.vgg19(pretrained=True).features
-        self.trans = nn.Conv2d(4, 3, kernel_size=1)
+        #self.trans = nn.Conv2d(4, 3, kernel_size=1)
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()
@@ -115,7 +115,7 @@ class VGG19(torch.nn.Module):
                 param.requires_grad = False
 
     def forward(self, X):
-        X = self.trans(X)
+        #X = self.trans(X)
         h_relu1 = self.slice1(X)
         h_relu2 = self.slice2(h_relu1)
         h_relu3 = self.slice3(h_relu2)

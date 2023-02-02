@@ -118,3 +118,31 @@ class VGGLoss(nn.Module):
 class KLDLoss(nn.Module):
     def forward(self, mu, logvar):
         return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+# Diversity Loss from DSGAN paper: 
+# Diversity-Sensitive Conditional Generative Adversarial Networks 
+# Dingdong Yang, Seunghoon Hong, Yunseok Jang, Tianchen Zhao, Honglak Lee
+# Code adapted from: https://github.com/maga33/DSGAN
+
+class DSGANRegLoss(nn.Module):
+    def forward(self, gen_imgs_feat, gen_imgs_eg_feat, z_var, z_var_eg, size, ratio, z_num):
+        _eps = 1.0e-5
+        batch_wise_imgs_l1 = F.l1_loss(gen_imgs_feat, 
+            gen_imgs_eg_feat.detach(), reduce=False).\
+            sum(dim=1).sum(dim=1).sum(dim=1)
+
+        batch_wise_imgs_l1 = batch_wise_imgs_l1\
+            / (3 * size ** 2 * ratio)
+
+        # Measure the difference of latent vector
+        batch_wise_z_l1 = F.l1_loss(
+                z_var.detach(), z_var_eg.detach(), 
+                reduce=False).\
+                sum(dim=1) / z_num
+
+        z_diff = batch_wise_z_l1
+        img_diff = batch_wise_imgs_l1
+            
+        temp_errNE = - (img_diff / (z_diff + _eps)).mean()
+        errNE = temp_errNE.mean()
+        return errNE

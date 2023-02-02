@@ -34,12 +34,14 @@ class Pix2PixModel(torch.nn.Module):
                 self.criterionVGG = networks.VGGLoss(self.opt.gpu_ids)
             if opt.use_vae:
                 self.KLDLoss = networks.KLDLoss()
+            if opt.regularization:
+                self.DSGANRegLoss = networks.DSGANRegLoss() 
 
     # Entry point for all calls involving forward pass
     # of deep networks. We used this approach since DataParallel module
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
-    def forward(self, data, mode, encoder):
+    def forward(self, data, mode, encoder=True):
         input_semantics, real_image = self.preprocess_input(data)
 
         if mode == 'generator':
@@ -55,14 +57,8 @@ class Pix2PixModel(torch.nn.Module):
             return mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.generate_fake(input_semantics, real_image, encoder)
+                fake_image, _, _ = self.generate_fake(input_semantics, real_image, encoder)
             return fake_image
-
-        #TODO: update to FID score after finishing it
-        elif mode == 'validation':
-            fid, generated = self.compute_FID(
-                input_semantics, real_image, self.opt)
-            return fid, generated
         else:
             raise ValueError("|mode| is invalid")
 
@@ -140,7 +136,7 @@ class Pix2PixModel(torch.nn.Module):
     def compute_generator_loss(self, input_semantics, real_image):
         G_losses = {}
 
-        fake_image, KLD_loss = self.generate_fake(
+        fake_image, z, KLD_loss = self.generate_fake(
             input_semantics, real_image, compute_kld_loss=self.opt.use_vae)
 
         if self.opt.use_vae:
@@ -168,12 +164,27 @@ class Pix2PixModel(torch.nn.Module):
             G_losses['VGG'] = self.criterionVGG(fake_image, real_image) \
                 * self.opt.lambda_vgg
 
+        if self.opt.regularization: 
+            with torch.no_grad():
+                fake_image_reg, z_reg, _ = self.generate_fake(
+                    input_semantics, real_image, compute_kld_loss=self.opt.use_vae)
+                
+                fake_image_reg = fake_image_reg.detach()
+                fake_image_reg.requires_grad_()
+                
+                z_reg = z_reg.detach()
+                z_reg.requires_grad_()
+
+            G_losses['DSGANReg'] = self.DSGANRegLoss(
+                fake_image, fake_image_reg, z, z_reg, self.opt.crop_size, self.opt.aspect_ratio, self.opt.z_dim
+            ) * self.opt.lambda_reg
+
         return G_losses, fake_image
 
     def compute_discriminator_loss(self, input_semantics, real_image):
         D_losses = {}
         with torch.no_grad():
-            fake_image, _ = self.generate_fake(input_semantics, real_image)
+            fake_image, _, _ = self.generate_fake(input_semantics, real_image)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
@@ -187,30 +198,12 @@ class Pix2PixModel(torch.nn.Module):
 
         return D_losses
 
-# TODO
-    def compute_FID(self, input_semantics, real_image, opt):
-        with torch.no_grad():
-            fake_image, _ = self.generate_fake(input_semantics, real_image)
-        device = 'cpu'
-        dims = 2048
-        block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
-        self.fid_dir = os.path.join(opt.checkpoints_dir, opt.name, 'fid')
-        model = InceptionV3([block_idx], model_dir=self.fid_dir).to(device)
-        path = opt.fid_gt
-        m_t, s_t = load_statistics(path)
-        # fake_image.to(device)
-        m_f, s_f = calculate_activation_statistics(fake_image, model, batch_size=50, dims = 2048, device = device)
-
-        fid = calculate_frechet_distance(m_t, s_t, m_f, s_f)
-        return fid, fake_image
-        
-
     def encode_z(self, real_image):
         mu, logvar = self.netE(real_image)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
-    def generate_fake(self, input_semantics, real_image, encoder, compute_kld_loss=False):
+    def generate_fake(self, input_semantics, real_image, encoder=True, compute_kld_loss=False):
         z = None
         KLD_loss = None
         # use encoder to generate z if specified, otherwise use randomly sampled z
@@ -224,7 +217,7 @@ class Pix2PixModel(torch.nn.Module):
         assert (not compute_kld_loss) or self.opt.use_vae, \
             "You cannot compute KLD loss if opt.use_vae == False"
 
-        return fake_image, KLD_loss
+        return fake_image, z, KLD_loss
 
     # Given fake and real image, return the prediction of discriminator
     # for each fake and real image.

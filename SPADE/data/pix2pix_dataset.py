@@ -19,21 +19,14 @@ class Pix2pixDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
 
-        if opt.extra_label == 'bd':
-            label_paths, image_paths, instance_paths, extra_label_paths = self.get_paths(opt)
-        else:
-            label_paths, image_paths, instance_paths = self.get_paths(opt)
+        label_paths, image_paths, instance_paths = self.get_paths(opt)
 
         util.natural_sort(label_paths)
-        if opt.extra_label == 'bd':
-            util.natural_sort(extra_label_paths)
         util.natural_sort(image_paths)
         if not opt.no_instance:
             util.natural_sort(instance_paths)
 
         label_paths = label_paths[:opt.max_dataset_size]
-        if opt.extra_label == 'bd':
-            extra_label_paths = extra_label_paths[:opt.max_dataset_size]
         image_paths = image_paths[:opt.max_dataset_size]
         instance_paths = instance_paths[:opt.max_dataset_size]
         
@@ -45,8 +38,6 @@ class Pix2pixDataset(BaseDataset):
         self.label_paths = label_paths
         self.image_paths = image_paths
         self.instance_paths = instance_paths
-        if opt.extra_label == 'bd':
-            self.extra_label_paths = extra_label_paths
 
         size = len(self.label_paths)
         self.dataset_size = size
@@ -56,8 +47,6 @@ class Pix2pixDataset(BaseDataset):
         image_paths = []
         instance_paths = []
         assert False, "A subclass of Pix2pixDataset must override self.get_paths(self, opt)"
-        if opt.extra_label == 'bd':
-            return label_paths, image_paths, instance_paths, extra_label_paths
         return label_paths, image_paths, instance_paths
 
     def paths_match(self, path1, path2):
@@ -74,47 +63,16 @@ class Pix2pixDataset(BaseDataset):
         params = get_params(self.opt, label.size)
         transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
         label_tensor = transform_label(label) * 255.0
-        
-        
-        if self.opt.extra_label == 'bd':
-            extra_label_path = self.extra_label_paths[index]
-            extra_label = Image.open(extra_label_path)
-            extra_label_tensor = transform_label(extra_label) * 255.0
-            
-            minpct = self.opt.bd_minpct*self.opt.crop_size*self.opt.crop_size
-            # print('--------------------')
-            # print(minpct)
-            # print(self.opt.crop_size)
-            # print('--------------------')
-            i = 0
-            # print(torch.sum(extra_label_tensor))
-            # print(extra_label_tensor)
-            
-            while torch.sum(extra_label_tensor)<minpct:
-                # crop until meet the min pct
-                params = get_params(self.opt, label.size)
-                transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
-                label_tensor = transform_label(label) * 255.0
-                extra_label_tensor = transform_label(extra_label) * 255.0
-                i+=1
-                if i==1000: minpct /= 10
-                elif i == 2000: minpct /= 10
-            print(torch.sum(extra_label_tensor))
-            print(i)
-            print("================")
-        # label_tensor = transform_label(label) * 255.0
-        label_tensor[label_tensor == self.opt.dontcare] = 0  # 'unknown' is opt.label_nc
-        assert torch.max(label_tensor) <= self.opt.label_nc * 1.0
-        
+        label_tensor[label_tensor == 255] = self.opt.label_nc  # 'unknown' is opt.label_nc
+
         # input image (real images)
         image_path = self.image_paths[index]
         assert self.paths_match(label_path, image_path), \
             "The label_path %s and image_path %s don't match." % \
             (label_path, image_path)
         image = Image.open(image_path)
-        # image = image.convert('RGB')
+        image = image.convert('RGB')
 
-        assert label.size == image.size
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
 
@@ -134,7 +92,6 @@ class Pix2pixDataset(BaseDataset):
                       'instance': instance_tensor,
                       'image': image_tensor,
                       'path': image_path,
-                      'extra_label': extra_label_tensor
                       }
 
         # Give subclasses a chance to modify the final output

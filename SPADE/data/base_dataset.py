@@ -26,9 +26,7 @@ def get_params(opt, size):
     w, h = size
     new_h = h
     new_w = w
-    if opt.preprocess_mode == 'crop_only':
-        pass
-    elif opt.preprocess_mode == 'resize_and_crop':
+    if opt.preprocess_mode == 'resize_and_crop':
         new_h = new_w = opt.load_size
     elif opt.preprocess_mode == 'scale_width_and_crop':
         new_w = opt.load_size
@@ -43,9 +41,6 @@ def get_params(opt, size):
     y = random.randint(0, np.maximum(0, new_h - opt.crop_size))
 
     flip = random.random() > 0.5
-    if opt.preprocess_mode == 'fixed' and opt.phase == 'test':
-        x = 0
-        y = 0
     return {'crop_pos': (x, y), 'flip': flip}
 
 
@@ -78,13 +73,13 @@ def get_transform(opt, params, method=Image.BICUBIC, normalize=True, toTensor=Tr
         transform_list += [transforms.ToTensor()]
 
     if normalize:
-        transform_list += [transforms.Normalize((0.5, 0.5, 0.5, 0.5),
-                                                (0.5, 0.5, 0.5, 0.5))]
+        transform_list += [transforms.Normalize((0.5, 0.5, 0.5),
+                                                (0.5, 0.5, 0.5))]
     return transforms.Compose(transform_list)
 
 
 def normalize():
-    return transforms.Normalize((0.5, 0.5, 0.5, 0.5), (0.5, 0.5, 0.5, 0.5))
+    return transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
 
 def __resize(img, w, h, method=Image.BICUBIC):
