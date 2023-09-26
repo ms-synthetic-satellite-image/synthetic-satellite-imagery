@@ -1,5 +1,5 @@
 # Label-conditional Synthetic Satellite Imagery
-Welcome to the Label-conditional Synthetic Satellite Imagery project repository ([our paper](https://arxiv.org/abs/2302.04305)), where you will find all the necessary codes, scripts, and documents for generating synthetic satellite images and conducting downstream experiments.
+Welcome to the Label-conditional Synthetic Satellite Imagery project repository ([our paper](https://arxiv.org/abs/2302.04305), [ICLR presentation](https://iclr.cc/virtual/2023/14881)), where you will find all the necessary codes, scripts, and documents for generating synthetic satellite images and conducting downstream experiments.
 
 <p align="center">
     <img src="figures/pipeline.drawio.png" width="800"/><br/>
